@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Credit Collection Managment</title>
+<style>
+  :root{
+    --bold-navy:#1B2A6B;
+    --bold-navy-hover:#142055;
+    --bold-salmon:#F3A6A3;
+    --bg-app:#F5F6F8;
+    --border-soft:#E4E6EC;
+    --text-primary:#1F2430;
+    --text-muted:#8A8F9C;
+    --text-label:#414660;
+    --state-green:#1FA971;
+    --link-teal:#0D9488;
+    --radius-md:8px;
+    --radius-pill:999px;
+    --font:-apple-system,"Inter","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);background:var(--bg-app);color:var(--text-primary);font-size:14px;}
+  .app{display:flex;min-height:100vh;}
+
+  /* ================= SIDEBAR (réplica del CRM, sin cambios) ================= */
+  .sidebar{width:230px;background:#fff;border-right:1px solid var(--border-soft);padding:20px 16px;}
+  .logo{font-weight:800;font-size:22px;color:var(--bold-navy);margin-bottom:28px;letter-spacing:-0.5px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-md);color:var(--text-label);font-weight:600;margin-bottom:4px;}
+  .nav-item.active{background:#EEF0FA;color:var(--bold-navy);}
+  .nav-icon{width:18px;text-align:center;opacity:.85;}
+
+  /* ================= MAIN ================= */
+  .main{flex:1;padding:22px 28px;}
+  .page-title{color:var(--bold-navy);font-size:22px;font-weight:800;margin:0 0 18px 0;}
+
+  .content{display:flex;gap:20px;align-items:flex-start;}
+  .content-left{flex:1;min-width:0;}
+  .content-right{width:300px;flex-shrink:0;}
+
+  .search-row{display:flex;gap:10px;margin-bottom:14px;}
+  .search-row input{
+    flex:1;padding:9px 12px;border:1px solid var(--border-soft);border-radius:6px;font-size:13px;
+  }
+  .btn-buscar{
+    background:var(--bold-navy);color:#fff;border:none;border-radius:var(--radius-pill);
+    padding:9px 22px;font-weight:700;font-size:13px;cursor:pointer;
+  }
+
+  .banner{
+    background:#EEF0FA;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text-label);
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;
+  }
+
+  .card{background:#fff;border:1px solid var(--border-soft);border-radius:10px;padding:18px 20px;margin-bottom:18px;}
+  .card-title{color:var(--bold-navy);font-weight:800;font-size:15px;margin:0 0 14px 0;}
+  .grid-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 12px;}
+  .field label{display:block;color:var(--text-muted);font-size:12px;margin-bottom:3px;}
+  .field .val{font-weight:700;color:var(--text-primary);font-size:13.5px;}
+  .field .val.link{color:var(--link-teal);}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:5px;}
+  .dot.green{background:var(--state-green);}
+  .dot.red{background:#E0554F;}
+  .name-title{font-weight:800;font-size:17px;margin:0 0 12px 0;color:var(--text-primary);}
+  .tag-activo{
+    position:absolute;top:14px;right:16px;background:#E6F7EF;color:var(--state-green);
+    font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;
+  }
+  .card.rel{position:relative;}
+
+  /* ---------- botones de acción a la derecha (existentes + nuevo) ---------- */
+  .action-buttons{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+  .btn-accion{
+    background:var(--bold-navy);color:#fff;border:none;border-radius:var(--radius-pill);
+    padding:11px 16px;font-weight:700;font-size:13.5px;cursor:pointer;text-align:left;
+    display:flex;align-items:center;gap:8px;transition:background .15s ease;
+  }
+  .btn-accion:hover{background:var(--bold-navy-hover);}
+  .btn-accion:disabled{background:var(--bold-salmon);cursor:default;opacity:.9;}
+  .btn-accion.nuevo{ } /* botón "Generar calendario" agregado, mismo estilo, sin distinción extra */
+
+  .mini-panel{background:#fff;border:1px solid var(--border-soft);border-radius:10px;padding:16px;}
+  .mini-panel label{display:block;font-size:12px;color:var(--text-label);font-weight:700;margin:10px 0 4px;}
+  .mini-panel select, .mini-panel input[type=text], .mini-panel textarea{
+    width:100%;border:1px solid var(--border-soft);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--font);
+  }
+  .btn-enviar{
+    width:100%;margin-top:14px;background:var(--bold-salmon);color:#fff;border:none;border-radius:var(--radius-pill);
+    padding:11px;font-weight:700;font-size:13.5px;
+  }
+
+  /* ---------- NUEVO: modal del calendario de pagos ---------- */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(20,24,45,.45);
+    align-items:center;justify-content:center;z-index:1000;padding:24px;
+  }
+  .modal-overlay.visible{display:flex;}
+  .modal-box{
+    background:#fff;border-radius:14px;width:100%;max-width:760px;max-height:85vh;
+    display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(20,24,45,.25);
+  }
+  .modal-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 22px;border-bottom:1px solid var(--border-soft);
+  }
+  .modal-header .card-title{margin:0;}
+  .modal-close{
+    background:none;border:none;font-size:18px;color:var(--text-muted);cursor:pointer;
+    width:28px;height:28px;border-radius:6px;
+  }
+  .modal-close:hover{background:#F0F1F5;color:var(--text-primary);}
+  .modal-body{padding:18px 22px;overflow-y:auto;}
+  .modal-footer{
+    padding:14px 22px;border-top:1px solid var(--border-soft);
+    display:flex;justify-content:flex-end;
+  }
+  .btn-cerrar-modal{
+    background:var(--bold-navy);color:#fff;border:none;border-radius:var(--radius-pill);
+    padding:9px 20px;font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .btn-cerrar-modal:hover{background:var(--bold-navy-hover);}
+  .btn-descargar{
+    background:#fff;color:var(--bold-navy);border:1px solid var(--bold-navy);border-radius:var(--radius-pill);
+    padding:9px 18px;font-weight:700;font-size:13px;cursor:pointer;margin-right:auto;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn-descargar:hover{background:#EEF0FA;}
+  .disclaimer{
+    color:var(--text-muted);font-size:11.5px;margin:12px 2px 0;line-height:1.4;
+  }
+
+  .tabla-scroll{overflow-x:auto;border:1px solid var(--border-soft);border-radius:var(--radius-md);}
+  table.calendario{border-collapse:collapse;width:100%;min-width:560px;font-size:12.5px;}
+  table.calendario thead th{
+    background:#FAFAFC;color:var(--text-label);font-weight:700;text-align:right;padding:9px 10px;
+    border-bottom:1px solid var(--border-soft);white-space:nowrap;
+  }
+  table.calendario thead th:nth-child(1),table.calendario thead th:nth-child(2){text-align:left;}
+  table.calendario tbody td{padding:8px 10px;border-bottom:1px solid #F0F1F5;text-align:right;white-space:nowrap;}
+  table.calendario tbody td:nth-child(1),table.calendario tbody td:nth-child(2){text-align:left;}
+  table.calendario tbody td.col-venc{font-weight:700;}
+  table.calendario tbody tr:hover{background:#FAFBFF;}
+  td.estado{font-weight:700;}
+  td.estado.parcial{color:var(--state-green);}
+  td.estado.pagado{color:var(--state-green);}
+  td.estado.pendiente{color:var(--text-muted);font-weight:600;}
+  tr.fila-total td{color:var(--text-muted);font-weight:700;border-top:1px solid var(--border-soft);background:#FAFAFC;}
+  .grupo-col{border-left:1px solid var(--border-soft);}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== SIDEBAR (sin cambios) ===== -->
+  <aside class="sidebar">
+    <div class="logo">bold</div>
+    <div class="nav-item active"><span class="nav-icon">💳</span> Credit Collection Man...</div>
+    <div class="nav-item"><span class="nav-icon">🏢</span> Administración Agencias</div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+    <h1 class="page-title">Credit Collection Managment</h1>
+
+    <div class="content">
+      <!-- ============ COLUMNA IZQUIERDA (réplica del UI actual) ============ -->
+      <div class="content-left">
+        <div class="search-row">
+          <input type="text" value="2VVRNHPHCY" />
+          <button class="btn-buscar">Buscar</button>
+        </div>
+
+        <div class="banner">
+          <span>ⓘ Este comercio está actualmente asociado a una agencia (Exclusiones; Exclusiones) para su gestión</span>
+          <span>✕</span>
+        </div>
+
+        <div class="card rel">
+          <span class="tag-activo">Activo</span>
+          <p class="card-title">Datos del cliente</p>
+          <p class="name-title">Viviana Gonzalez Sanabria</p>
+          <div class="grid-fields">
+            <div class="field"><label>Merchant ID</label><div class="val">2VVRNHPHCY</div></div>
+            <div class="field"><label>Documento</label><div class="val">1018454164</div></div>
+            <div class="field"><label>Comercio</label><div class="val">Bold Pruebas_ Viviana Gonzalez...</div></div>
+            <div class="field"><label>Estado comercio</label><div class="val">Activo <span class="dot green"></span></div></div>
+            <div class="field"><label>Estado datáfono</label><div class="val">Bloqueado <span class="dot red"></span></div></div>
+            <div class="field"><label>Correo eléctronico</label><div class="val link">vivianagsana@gma...</div></div>
+            <div class="field"><label>Teléfono 1</label><div class="val">3102055293</div></div>
+            <div class="field"><label>Teléfono 2</label><div class="val">+573102055293</div></div>
+          </div>
+        </div>
+
+        <div class="card rel">
+          <span class="tag-activo">Activo</span>
+          <p class="card-title">Datos del préstamo</p>
+          <div class="grid-fields">
+            <div class="field"><label>Deuda total</label><div class="val">$ 16.748</div></div>
+            <div class="field"><label>Pago mínimo</label><div class="val">$ 4.433</div></div>
+            <div class="field"><label>Límite de pago</label><div class="val">28 nov 2026</div></div>
+            <div class="field"><label>Último pago</label><div class="val">31 jul 2026</div></div>
+            <div class="field"><label>Batch</label><div class="val">Batch_prueba_capital</div></div>
+            <div class="field"><label>Loan ID</label><div class="val">RL_PRTNPYF56L</div></div>
+            <div class="field"><label>Tasa de interés</label><div class="val">1.54% M.V. / 20.13% E.A.</div></div>
+            <div class="field"><label>% descuento</label><div class="val">20%</div></div>
+            <div class="field"><label>Pago mínimo extendido</label><div class="val">$ 19.114</div></div>
+            <div class="field"><label>Mora actual</label><div class="val">-</div></div>
+            <div class="field"><label>Mora máxima</label><div class="val">-</div></div>
+            <div class="field"><label>Última ampliación</label><div class="val">-</div></div>
+            <div class="field"><label># Acuerdos</label><div class="val">-</div></div>
+            <div class="field"><label># Incumplimientos</label><div class="val">-</div></div>
+            <div class="field"><label>Estado del refill</label><div class="val">Bloqueado <span class="dot red"></span></div></div>
+            <div class="field"><label>Fecha de bloqueo</label><div class="val">1 dic 2025</div></div>
+            <div class="field"><label>Motivo de bloqueo</label><div class="val">Bloqueo manual</div></div>
+            <div class="field"><label>Fecha desbloqueo</label><div class="val">-</div></div>
+            <div class="field"><label>Débito en progreso</label><div class="val">No</div></div>
+            <div class="field"><label>Entidad débito</label><div class="val">N/A</div></div>
+            <div class="field"><label>Versión del crédito</label><div class="val">REVOLVING</div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============ COLUMNA DERECHA (réplica + botón nuevo) ============ -->
+      <div class="content-right">
+        <div class="action-buttons">
+          <button class="btn-accion">Ver en Mambu</button>
+          <button class="btn-accion">Enviar recordatorio</button>
+          <button class="btn-accion">Abrir conversación</button>
+          <!-- NUEVO BOTÓN SOLICITADO, agregado sobre el bloque de acciones existente -->
+          <button class="btn-accion nuevo" id="btnGenerarCalendario" onclick="generarCalendario()">
+            Generar calendario
+          </button>
+        </div>
+
+        <div class="mini-panel">
+          <label style="margin-top:0;">Número Efecty</label>
+          <div style="font-weight:700;">113544-</div>
+
+          <p class="card-title" style="margin-top:16px;">Nueva gestión</p>
+
+          <label>Tipo de contacto*</label>
+          <select><option>Selecciona</option></select>
+
+          <label>Canal*</label>
+          <select><option>Selecciona</option></select>
+
+          <label>Valor de acuerdo</label>
+          <input type="text" placeholder="" />
+
+          <label>Fecha acuerdo</label>
+          <input type="text" placeholder="dd/mm/aaaa" />
+
+          <label>Causal no pago</label>
+          <select><option>Selecciona</option></select>
+
+          <label>Tipo de producto</label>
+          <select><option selected>Cupo Bold</option></select>
+
+          <label>Nota</label>
+          <textarea rows="3"></textarea>
+
+          <button class="btn-enviar" disabled>Enviar nueva gestión</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ NUEVO: modal del calendario de pagos ============ -->
+<div class="modal-overlay" id="modal-calendario">
+  <div class="modal-box">
+    <div class="modal-header">
+      <p class="card-title">📅 Calendario de pagos — plan a 24 meses</p>
+      <button class="modal-close" onclick="cerrarCalendario()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabla-scroll">
+        <table class="calendario">
+          <thead>
+            <tr>
+              <th>#</th><th>Mes</th>
+              <th>Capital Esperado</th><th>Interés Esperado</th><th>Comisiones Esperadas</th><th>Impuestos Esperados</th><th>Total Esperado</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="calendario-body"></tbody>
+        </table>
+      </div>
+      <p class="disclaimer">*Este es un plan de pagos estimado y no constituye un plan de pagos en firme.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-descargar" onclick="descargarExcel()">⬇ Descargar en Excel</button>
+      <button class="btn-cerrar-modal" onclick="cerrarCalendario()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Librería para generar el archivo .xlsx directamente en el navegador (sin backend) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  // ---------- Parámetros del crédito (tomados del panel "Datos del préstamo") ----------
+  const CAPITAL_INICIAL = 16748;   // "Deuda total"
+  const TASA_MENSUAL = 0.0154;     // 1.54% M.V.
+  const PLAZO_MESES = 24;          // plan de pagos a 24 meses
+
+  // Simulación: el comercio ya está activo y va en el mes 4, es decir,
+  // ya canceló los pagos mínimos de los meses 1, 2 y 3.
+  // Ajusta este valor si el mes actual del comercio cambia.
+  const MES_ACTUAL = 4;
+
+  function money(v){ return (!v && v !== 0) || v === 0 ? '-' : '$' + Math.round(v).toLocaleString('es-CO'); }
+
+  // Genera el plan de pagos esperado (sistema de cuota fija / amortización francesa),
+  // sin comisiones ni impuestos (no aplican para este producto por defecto -> "-").
+  // Los meses anteriores al mes actual del comercio se marcan como "Pagado"
+  // (ya fueron cancelados); del mes actual en adelante queda "Pendiente".
+  function generarPlanEsperado(){
+    const i = TASA_MENSUAL;
+    const n = PLAZO_MESES;
+    const cuota = CAPITAL_INICIAL * i / (1 - Math.pow(1 + i, -n));
+
+    let saldo = CAPITAL_INICIAL;
+    const filas = [];
+    for (let mes = 1; mes <= n; mes++){
+      const interes = saldo * i;
+      let capital = cuota - interes;
+      if (mes === n) capital = saldo; // ajusta el último mes para saldar en $0
+      saldo = Math.max(saldo - capital, 0);
+      filas.push({
+        n: mes,
+        mes: 'Mes ' + mes,
+        capEsp: capital,
+        intEsp: interes,
+        comEsp: 0,
+        impEsp: 0,
+        totEsp: capital + interes,
+        pagado: mes < MES_ACTUAL
+      });
+    }
+    return filas;
+  }
+
+  function fila(c){
+    if (c.pagado){
+      return `<tr>
+        <td>${c.n}</td><td class="col-venc">${c.mes}</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td class="estado pagado">Pagado</td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${c.n}</td><td class="col-venc">${c.mes}</td>
+      <td>${money(c.capEsp)}</td><td>${money(c.intEsp)}</td><td>${money(c.comEsp)}</td><td>${money(c.impEsp)}</td><td><strong>${money(c.totEsp)}</strong></td>
+      <td class="estado pendiente">Pendiente</td>
+    </tr>`;
+  }
+
+  function filaTotales(filas){
+    // Los totales solo suman los meses pendientes (lo que aún falta por pagar del plan),
+    // ya que los meses "Pagado" no tienen valores esperados pendientes.
+    const t = filas.filter(c => !c.pagado).reduce((acc, c) => {
+      acc.capEsp += c.capEsp; acc.intEsp += c.intEsp; acc.comEsp += c.comEsp; acc.impEsp += c.impEsp; acc.totEsp += c.totEsp;
+      return acc;
+    }, {capEsp:0, intEsp:0, comEsp:0, impEsp:0, totEsp:0});
+
+    return `<tr class="fila-total">
+      <td></td><td>Totales pendientes</td>
+      <td>${money(t.capEsp)}</td><td>${money(t.intEsp)}</td><td>${money(t.comEsp)}</td><td>${money(t.impEsp)}</td><td>${money(t.totEsp)}</td>
+      <td></td>
+    </tr>`;
+  }
+
+  let ULTIMO_PLAN = []; // guarda el plan generado para poder exportarlo a Excel
+
+  function generarCalendario(){
+    ULTIMO_PLAN = generarPlanEsperado();
+    document.getElementById('calendario-body').innerHTML = ULTIMO_PLAN.map(fila).join('') + filaTotales(ULTIMO_PLAN);
+    document.getElementById('modal-calendario').classList.add('visible');
+  }
+
+  function cerrarCalendario(){
+    document.getElementById('modal-calendario').classList.remove('visible');
+  }
+
+  // Exporta el plan de pagos actualmente visible a un archivo .xlsx
+  function descargarExcel(){
+    if (!ULTIMO_PLAN.length) return;
+
+    const encabezados = ['#', 'Mes', 'Capital Esperado', 'Interés Esperado', 'Comisiones Esperadas', 'Impuestos Esperados', 'Total Esperado', 'Estado'];
+    const filasExcel = ULTIMO_PLAN.map(c => c.pagado
+      ? [c.n, c.mes, '-', '-', '-', '-', '-', 'Pagado']
+      : [c.n, c.mes, Math.round(c.capEsp), Math.round(c.intEsp), c.comEsp, c.impEsp, Math.round(c.totEsp), 'Pendiente']
+    );
+
+    const totales = ULTIMO_PLAN.filter(c => !c.pagado).reduce((acc, c) => {
+      acc.capEsp += c.capEsp; acc.intEsp += c.intEsp; acc.comEsp += c.comEsp; acc.impEsp += c.impEsp; acc.totEsp += c.totEsp;
+      return acc;
+    }, {capEsp:0, intEsp:0, comEsp:0, impEsp:0, totEsp:0});
+    filasExcel.push(['', 'Totales pendientes', Math.round(totales.capEsp), Math.round(totales.intEsp), Math.round(totales.comEsp), Math.round(totales.impEsp), Math.round(totales.totEsp), '']);
+    filasExcel.push([]);
+    filasExcel.push(['*Este es un plan de pagos estimado y no constituye un plan de pagos en firme.']);
+
+    const hoja = XLSX.utils.aoa_to_sheet([encabezados, ...filasExcel]);
+    hoja['!cols'] = [{wch:4},{wch:8},{wch:18},{wch:18},{wch:20},{wch:20},{wch:16},{wch:14}];
+
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, 'Calendario de pagos');
+    XLSX.writeFile(libro, nombreArchivoExcel());
+  }
+
+  // Arma el nombre del archivo: calendario_de_pagos_(fecha de descarga)_(nombre comercio)
+  function nombreArchivoExcel(){
+    const hoy = new Date();
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const yyyy = hoy.getFullYear();
+    const fecha = `${dd}-${mm}-${yyyy}`;
+
+    const comercioRaw = document.querySelector('.field .val')?.parentElement
+      ? Array.from(document.querySelectorAll('.field')).find(f => f.querySelector('label')?.textContent.trim() === 'Comercio')?.querySelector('.val')?.textContent.trim()
+      : '';
+    const comercio = (comercioRaw || 'comercio')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '') // quita tildes
+      .replace(/[^a-zA-Z0-9]+/g, '_')                    // reemplaza espacios/símbolos
+      .replace(/^_+|_+$/g, '');                          // limpia bordes
+
+    return `calendario_de_pagos_${fecha}_${comercio}.xlsx`;
+  }
+
+  // Cierra el modal al hacer clic fuera de la tarjeta
+  document.getElementById('modal-calendario').addEventListener('click', function(e){
+    if (e.target === this) cerrarCalendario();
+  });
+</script>
+
+</body>
+</html>
